@@ -26,19 +26,12 @@ public slots:
     void on_WakeTestPauseBtn_Clicked();
     void on_WakeTestStopBtn_Clicked();
     void on_GetWakeTestResultBtn_Clicked();
-    void on_NoiseFileBtn_Clicked();
-    void on_NoisePlayBtn_Clicked();
-    void on_NoiseStopBtn_Clicked();
     void on_AudioDevComboBox_CurrentTextChanged(QString deviceName);
-    void on_NoiseAudioDevComboBox_CurrentTextChanged(QString deviceName);
     void on_PlayModeComboBox_CurrentIndexChanged(int indx);
     void on_TestModeComboBox_CurrentIndexChanged(int indx);
     void AudioPlayFinished();
     void AudioPlayPositionChanged(qint64 position);       // 播放位置改变信号
     void AudioPlayErrorOccurred(const QString &error); // 错误状态信号
-    void NoiseAudioPlayFinished();
-    void NoiseAudioPlayPositionChanged(qint64 position);       // 播放位置改变信号
-    void NoiseAudioPlayErrorOccurred(const QString &error); // 错误状态信号
     void onItemClicked(QListWidgetItem * item);
     void onItemDoubleClicked(QListWidgetItem * item);
     void adbCmdOutput();
@@ -55,12 +48,9 @@ private:
     Ui::Widget *ui;
     AudioPlayer * mPlayer;
     AudioPlayer * mCharacterTestPlayer;
-    AudioPlayer * mNoisePlayer; //噪声音频出来线程
     AudioPlayer * ptrPlayer; //做播放切换使用
     QString strAudioOutputDevice;
-    QString strNoiseAudioOutputDevice;
     QString strAudioFileName;
-    QString strNoiseAudioFileName;
     qint64 mWakeTestIntervalTime = 1000; //每次播放完成的等待下一次的时间间隔
     qint64 mWakePlayCycleCount = 0;   //循环播放唤醒词次数
     qint64 mWakeDevCount = 0;         //唤醒设备的次数
@@ -69,7 +59,6 @@ private:
     qint64 mCharPlayCycleCount = 0;
     float mCharSimilarity = 0.0;  //字符相似度
 
-    bool mNoisePlayerStop = true; //默认噪声播放器为停止状态。
     bool mAudioPlayerStop = true; //音频播放器默认为停止状态。
 
     std::vector<QString> audioFiles;  // 存储音频文件路径

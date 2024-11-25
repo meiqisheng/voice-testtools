@@ -11,7 +11,6 @@ Widget::Widget(QWidget *parent)
     , ui(new Ui::Widget)
     , mPlayer(new AudioPlayer(this))
     , mCharacterTestPlayer(new AudioPlayer(this))
-    , mNoisePlayer(new  AudioPlayer(this))
 {
     ui->setupUi(this);
 
@@ -30,9 +29,6 @@ Widget::Widget(QWidget *parent)
         ui->AudioDevComboBox->addItems(audioOutputDevices);
         ui->AudioDevComboBox->setCurrentIndex(0);
         strAudioOutputDevice = ui->AudioDevComboBox->currentText();
-        ui->NoiseAudioDevComboBox->addItems(audioOutputDevices);
-        ui->NoiseAudioDevComboBox->setCurrentIndex(0);
-        strNoiseAudioOutputDevice = ui->NoiseAudioDevComboBox->currentText();
     }
 
     QString str = QString::asprintf("%llu",mWakeTestIntervalTime);
@@ -47,7 +43,6 @@ Widget::Widget(QWidget *parent)
     connect(ui->WakeTestStopBtn,&QPushButton::clicked,this, &Widget::on_WakeTestStopBtn_Clicked);
     connect(ui->GetWakeTestResultBtn,&QPushButton::clicked,this,&Widget::on_GetWakeTestResultBtn_Clicked);
     connect(ui->AudioDevComboBox,&QComboBox::currentTextChanged, this , &Widget::on_AudioDevComboBox_CurrentTextChanged);
-    connect(ui->NoiseAudioDevComboBox,&QComboBox::currentTextChanged, this , &Widget::on_NoiseAudioDevComboBox_CurrentTextChanged);
   //  connect(ui->PlayModeComboBox,&QComboBox::currentIndexChanged, this , &Widget::on_PlayModeComboBox_CurrentIndexChanged);
     connect(ui->PlayModeComboBox,SIGNAL(currentIndexChanged(int)),
             this, SLOT(on_PlayModeComboBox_CurrentIndexChanged(int)));
@@ -55,9 +50,6 @@ Widget::Widget(QWidget *parent)
             this, SLOT(on_TestModeComboBox_CurrentIndexChanged(int)));
     connect(ui->WakeIntervalTimeEdit,&QLineEdit::editingFinished,this,&Widget::on_WakeIntervalTimeEdit_EditingFinished);
     connect(ui->CharTestIntervalTimeEdit,&QLineEdit::editingFinished,this,&Widget::on_CharTestIntervalTimeEdit_EditingFinished);
-    connect(ui->NoiseFileBtn,&QPushButton::clicked,this, &Widget::on_NoiseFileBtn_Clicked);
-    connect(ui->NoisePlayBtn,&QPushButton::clicked,this, &Widget::on_NoisePlayBtn_Clicked);
-    connect(ui->NoiseStopBtn,&QPushButton::clicked,this, &Widget::on_NoiseStopBtn_Clicked);
 
     // 唤醒测试播放器信号连接
      connect(mPlayer, &AudioPlayer::playbackFinished, this, &Widget::AudioPlayFinished);
@@ -67,17 +59,7 @@ Widget::Widget(QWidget *parent)
      connect(mCharacterTestPlayer, &AudioPlayer::playbackFinished, this, &Widget::AudioPlayFinished);
      connect(mCharacterTestPlayer, &AudioPlayer::positionChanged, this, &Widget::AudioPlayPositionChanged);
      connect(mCharacterTestPlayer, &AudioPlayer::errorOccurred, this, &Widget::AudioPlayErrorOccurred);
-  //噪声播放器信号连接
-     connect(mNoisePlayer, &AudioPlayer::playbackFinished, this, &Widget::NoiseAudioPlayFinished);
-     connect(mNoisePlayer, &AudioPlayer::positionChanged, this, &Widget::NoiseAudioPlayPositionChanged);
-     connect(mNoisePlayer, &AudioPlayer::errorOccurred, this, &Widget::NoiseAudioPlayErrorOccurred);
-   //噪声播放信号连接
-   // 连接信号与槽
 
-  //   connect(mPlayer, SIGNAL(playbackFinishedAudioPlayErrorOccurred()), this, SLOT(AudioPlayFinished()));
- //    connect(mPlayer, SIGNAL(positionChanged(int)), this, SLOT(AudioPlayPositionChanged(int)));
-  //    QObject::connect(mPlayer, SIGNAL(AudioPlayer::errorOccurred(QString)),
-  //            this, SLOT(AudioPlayErrorOccurred(QString)));
     connect(ui->listWidget, &QListWidget::itemClicked, this, &Widget::onItemClicked);
     connect(ui->listWidget, &QListWidget::itemDoubleClicked, this, &Widget::onItemDoubleClicked);
 
@@ -113,7 +95,6 @@ Widget::~Widget()
     if (mCharacterTestPlayer != nullptr){
        delete mCharacterTestPlayer;
     }
-    delete mNoisePlayer;
     delete mAdbProcess;
     delete mTimer;
     delete ui;
@@ -277,50 +258,6 @@ void Widget::on_AudioFileBtn_Clicked()
    }
 }
 
-void Widget::on_NoiseFileBtn_Clicked()
-{
-    qDebug() << "into on_NoiseFileBtn_Clicked";
-    // 打开文件选择对话框
-    strNoiseAudioFileName = QFileDialog::getOpenFileName(
-        nullptr,
-        "选择音频文件",              // 对话框标题
-        "/",                     // 初始目录 (根目录)
-        "音频文件 (*.mp3);;所有文件 (*)"  // 文件过滤器
-    );
-    // 如果选择了文件，输出文件路径
-    if (!strNoiseAudioFileName.isEmpty()) {
-      //  qDebug() << "选择的文件:" << strAudioFileName;
-        ui->NoiseAudioFilelNameEdit->setText(strNoiseAudioFileName);
-    } else {
-        qDebug() << "未选择任何文件";
-    }
-}
-
-void Widget::on_NoisePlayBtn_Clicked()
-{
-    if (strNoiseAudioFileName.isEmpty() || strNoiseAudioOutputDevice.isEmpty()){
-        qDebug() << "请确认是否选择音频输出设备和音频文件"; //后续增加Qmessagebox提示
-        return;
-    }
-    if (mNoisePlayer == nullptr){
-       return;
-    }
-
-    mNoisePlayer->setAudioDevice(strNoiseAudioOutputDevice);
-    mNoisePlayer->setAudioFile(strNoiseAudioFileName);
-    mNoisePlayer->play();
-    mNoisePlayerStop = false;
-
-}
-
-void Widget::on_NoiseStopBtn_Clicked()
-{
-    if (mNoisePlayer == nullptr){
-       return;
-    }
-    mNoisePlayer->stop();
-    mNoisePlayerStop = true;
-}
 
 void Widget::on_WakeTestBtn_Clicked()
 {
@@ -377,10 +314,6 @@ void Widget::on_AudioDevComboBox_CurrentTextChanged(QString deviceName)
     strAudioOutputDevice = deviceName;
 }
 
-void Widget::on_NoiseAudioDevComboBox_CurrentTextChanged(QString deviceName)
-{
-    strNoiseAudioOutputDevice = deviceName;
-}
 
 void Widget::on_PlayModeComboBox_CurrentIndexChanged(int index)
 {
@@ -471,26 +404,5 @@ void Widget::AudioPlayErrorOccurred(const QString &error)
     qDebug() << "Error: " << error;
 }
 
-void Widget::NoiseAudioPlayFinished()
-{
-    qDebug() << "Playback finished!";
-    if (mNoisePlayer != nullptr){
-       mNoisePlayer->stop();
-    }
-    if (mNoisePlayerStop == true){
-       return;
-    }
-    on_NoisePlayBtn_Clicked(); //没有按停止按键是不断循环播放的。
-}
-
-void Widget::NoiseAudioPlayPositionChanged(qint64 position)
-{
-  //  qDebug() << "Current Position: " << position << " seconds";
-}
-
-void Widget::NoiseAudioPlayErrorOccurred(const QString &error)
-{
-    qDebug() << "Error: " << error;
-}
 
 

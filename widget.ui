@@ -186,10 +186,10 @@
    <widget class="QStackedWidget" name="stackedWidget">
     <property name="geometry">
      <rect>
-      <x>0</x>
-      <y>200</y>
-      <width>871</width>
-      <height>251</height>
+      <x>10</x>
+      <y>90</y>
+      <width>861</width>
+      <height>321</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -381,91 +381,6 @@
       <y>450</y>
       <width>911</width>
       <height>591</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_11">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>140</y>
-      <width>111</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>噪声音频文件:</string>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="NoiseAudioFilelNameEdit">
-    <property name="geometry">
-     <rect>
-      <x>120</x>
-      <y>130</y>
-      <width>401</width>
-      <height>51</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="NoiseFileBtn">
-    <property name="geometry">
-     <rect>
-      <x>540</x>
-      <y>130</y>
-      <width>71</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>...</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="NoisePlayBtn">
-    <property name="geometry">
-     <rect>
-      <x>640</x>
-      <y>130</y>
-      <width>71</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>播放</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="NoiseStopBtn">
-    <property name="geometry">
-     <rect>
-      <x>730</x>
-      <y>130</y>
-      <width>71</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>停止</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_13">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>80</y>
-      <width>111</width>
-      <height>41</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>噪声音频设备:</string>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="NoiseAudioDevComboBox">
-    <property name="geometry">
-     <rect>
-      <x>120</x>
-      <y>70</y>
-      <width>401</width>
-      <height>51</height>
      </rect>
     </property>
    </widget>
