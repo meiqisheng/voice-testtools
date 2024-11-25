@@ -13,7 +13,7 @@ Widget::Widget(QWidget *parent)
     , mCharacterTestPlayer(new AudioPlayer(this))
 {
     ui->setupUi(this);
-
+    this->setWindowFlags(Qt::Widget | Qt::MSWindowsFixedSizeDialogHint);
     QString title = QString("VoiceTestTools - Version %1, build:%2-%3").arg(APP_VERSION).arg(__DATE__).arg(__TIME__);
     this->setWindowTitle(title);
     ui->VolumeSlider->setRange(0,100);
