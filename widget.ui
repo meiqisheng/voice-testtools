@@ -291,8 +291,8 @@
      <widget class="QPushButton" name="GetWakeTestResultBtn">
       <property name="geometry">
        <rect>
-        <x>660</x>
-        <y>130</y>
+        <x>590</x>
+        <y>190</y>
         <width>141</width>
         <height>41</height>
        </rect>

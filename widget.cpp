@@ -4,7 +4,7 @@
 #include <QDebug>
 #include <QMessageBox>
 
-#define APP_VERSION "1.0.4"
+#define APP_VERSION "1.0.6"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -123,12 +123,46 @@ void Widget::adbProcessExecude(QString &adbPath, QStringList &arguments)
     }
 }
 
+void Widget::analysisWakeTestResult()
+{
+    QFile file("./log/wake.log");
+    // 检查文件是否可以打开
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open file:" << "./log/wake.log";
+        return;
+    }
+    mWakeDevCount = 0;
+    QTextStream in(&file);
+
+    // 逐行读取文件内容
+    while (!in.atEnd()) {
+        in.readLine();  // 读取一行
+        ++mWakeDevCount;    // 行数计数
+    }
+
+    file.close();  // 关闭文件
+    QString str = QString::asprintf("%llu",mWakeDevCount);
+    ui->WakeDevCountEdit->setText(str);
+    if (mWakePlayCycleCount == 0){
+        mWakeupRate = 0;
+    }else{
+        mWakeupRate = mWakeDevCount *100.0 / mWakePlayCycleCount;
+    }
+    str = QString::asprintf("%f",mWakeupRate);
+    ui->WakeupRateEdit->setText(str);
+}
+
+void Widget::analysisCharTestResult()
+{
+
+}
+
 void Widget::adbCmdOutput()
 {
     QByteArray output = mAdbProcess->readAllStandardOutput();
-    mWakeDevCount++;
-    QString str = QString::asprintf("%llu",mWakeDevCount);
-    ui->WakePlayCycleCountEdit->setText(str);
+  //  mWakeDevCount++;
+  //  QString str = QString::asprintf("%llu",mWakeDevCount);
+  //  ui->WakeDevCountEdit->setText(str);
     qDebug() << "Output:" << output;
 }
 
@@ -141,6 +175,11 @@ void Widget::adbCmdFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitStatus == QProcess::NormalExit && exitCode == 0) {
         qDebug() << "adb cmd completed successfully";
+        if (mCmdType == WakeTest){  //解析waketest获取的数据
+           analysisWakeTestResult();
+        }else{ //解析字准测试数据
+
+        }
     } else {
         qDebug() << "adb cmd failed with exit code:" << exitCode;
     }
@@ -305,7 +344,8 @@ void Widget::on_GetWakeTestResultBtn_Clicked()
     //获取唤醒测试的结果统计
     QString adbPath = "adb";
     QStringList cmdList;
-    cmdList << "logcat";
+    cmdList << "pull" << "/sdcard/wake.log" << "./log/";
+    mCmdType = WakeTest;
     adbProcessExecude(adbPath,cmdList);
 }
 

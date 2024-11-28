@@ -44,6 +44,8 @@ public slots:
     void on_VolumeSlider_ValueChanged(int value);
 private:
     bool addAudiofileToList(QString fileName);  //成功返回true,失败返回false，防止名字重复
+    void analysisWakeTestResult();
+    void analysisCharTestResult();
 private:
     Ui::Widget *ui;
     AudioPlayer * mPlayer;
@@ -63,6 +65,7 @@ private:
 
     std::vector<QString> audioFiles;  // 存储音频文件路径
     int currentIndex;                 // 当前播放的音频文件索引
+
     enum PlaybackMode {
         Single=0,         // 单曲播放，播放完一首歌后停止
         SingleLoop,     // 单曲循环，重复播放当前的单曲
@@ -73,6 +76,11 @@ private:
     //bool mLoopMode;                    // 是否启用循环播放
     QProcess * mAdbProcess;
     QString mAdbPath;
+    enum CmdType {
+        WakeTest=0,
+        CharTest
+    };
+    CmdType mCmdType = WakeTest;
     QStringList mWakeArgsList;       //唤醒结果读取命令
     QStringList mCharacterArgsList;  // 字准结果读取命令
     QTimer * mTimer;
