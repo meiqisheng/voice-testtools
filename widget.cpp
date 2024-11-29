@@ -3,8 +3,10 @@
 #include <QFileDialog>
 #include <QDebug>
 #include <QMessageBox>
+#include <QDateTime>
+#include <QBuffer>
 
-#define APP_VERSION "1.0.6"
+#define APP_VERSION "1.0.7"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -16,6 +18,9 @@ Widget::Widget(QWidget *parent)
     this->setWindowFlags(Qt::Widget | Qt::MSWindowsFixedSizeDialogHint);
     QString title = QString("VoiceTestTools - Version %1, build:%2-%3").arg(APP_VERSION).arg(__DATE__).arg(__TIME__);
     this->setWindowTitle(title);
+    QFont font("Microsoft YaHei", 12);
+    ui->textEdit->setFont(font);
+
     ui->VolumeSlider->setRange(0,100);
     ui->VolumeSlider->setValue(10);
     ui->VolumeSlider->setTickPosition(QSlider::TicksBelow);
@@ -42,6 +47,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->WakeTestPauseBtn,&QPushButton::clicked,this, &Widget::on_WakeTestPauseBtn_Clicked);
     connect(ui->WakeTestStopBtn,&QPushButton::clicked,this, &Widget::on_WakeTestStopBtn_Clicked);
     connect(ui->GetWakeTestResultBtn,&QPushButton::clicked,this,&Widget::on_GetWakeTestResultBtn_Clicked);
+    connect(ui->GetCharTestDataBtn,&QPushButton::clicked,this,&Widget::on_GetCharTestDataBtn_Clicked);
     connect(ui->AudioDevComboBox,&QComboBox::currentTextChanged, this , &Widget::on_AudioDevComboBox_CurrentTextChanged);
   //  connect(ui->PlayModeComboBox,&QComboBox::currentIndexChanged, this , &Widget::on_PlayModeComboBox_CurrentIndexChanged);
     connect(ui->PlayModeComboBox,SIGNAL(currentIndexChanged(int)),
@@ -133,13 +139,14 @@ void Widget::analysisWakeTestResult()
     }
     mWakeDevCount = 0;
     QTextStream in(&file);
-
+    QString line = "";
     // 逐行读取文件内容
     while (!in.atEnd()) {
-        in.readLine();  // 读取一行
+     line = in.readLine();  // 读取一行
         ++mWakeDevCount;    // 行数计数
-    }
 
+    }
+    ui->WakeFinishTimeEdit->setText(line.mid(5));
     file.close();  // 关闭文件
     QString str = QString::asprintf("%llu",mWakeDevCount);
     ui->WakeDevCountEdit->setText(str);
@@ -154,7 +161,7 @@ void Widget::analysisWakeTestResult()
 
 void Widget::analysisCharTestResult()
 {
-
+     qDebug() << "analysisCharTestResult";
 }
 
 void Widget::adbCmdOutput()
@@ -178,7 +185,7 @@ void Widget::adbCmdFinished(int exitCode, QProcess::ExitStatus exitStatus)
         if (mCmdType == WakeTest){  //解析waketest获取的数据
            analysisWakeTestResult();
         }else{ //解析字准测试数据
-
+           analysisCharTestResult();
         }
     } else {
         qDebug() << "adb cmd failed with exit code:" << exitCode;
@@ -349,6 +356,15 @@ void Widget::on_GetWakeTestResultBtn_Clicked()
     adbProcessExecude(adbPath,cmdList);
 }
 
+void Widget::on_GetCharTestDataBtn_Clicked()
+{   //获取字准测试数据文档
+    QString adbPath = "adb";
+    QStringList cmdList;
+    cmdList << "pull" << "/sdcard/wake.log" << "./log/";
+    mCmdType = CharTest;
+    adbProcessExecude(adbPath,cmdList);
+}
+
 void Widget::on_AudioDevComboBox_CurrentTextChanged(QString deviceName)
 {
     strAudioOutputDevice = deviceName;
@@ -413,11 +429,16 @@ void Widget::AudioPlayFinished()
        ptrPlayer->stop();
     }
     //此处可以优化
-    if (ui->TestModeComboBox->currentIndex() == 0){
+    if (ui->TestModeComboBox->currentIndex() == 0){ //唤醒测试播放完成
        mWakePlayCycleCount++;
+       QDateTime currentDateTime = QDateTime::currentDateTime();
+       QString userTest = "当前播放次数:" + QString::number(mWakePlayCycleCount)
+                          +" 当前日期时间:" + currentDateTime.toString("yyyy-MM-dd HH:mm:ss");
+       ui->textEdit->append(userTest);
        QString str = QString::asprintf("%llu",mWakePlayCycleCount);
        ui->WakePlayCycleCountEdit->setText(str);
-    }else{
+       ui->WakePlayFinishTimeEdit->setText(currentDateTime.toString("yyyy-MM-dd HH:mm:ss"));
+    }else{ //字准测试播放完成
        mCharPlayCycleCount++;
        QString str = QString::asprintf("%llu",mCharPlayCycleCount);
        ui->CharTestPalyCountEdit->setText(str);
@@ -436,7 +457,7 @@ void Widget::AudioPlayFinished()
 
 void Widget::AudioPlayPositionChanged(qint64 position)
 {
-  //  qDebug() << "Current Position: " << position << " seconds";
+   // qDebug() << "Current Position: " << position << " seconds";
 }
 
 void Widget::AudioPlayErrorOccurred(const QString &error)

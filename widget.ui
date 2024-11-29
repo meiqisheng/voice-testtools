@@ -75,9 +75,9 @@
   <widget class="QWidget" name="widget" native="true">
    <property name="geometry">
     <rect>
-     <x>610</x>
+     <x>560</x>
      <y>20</y>
-     <width>881</width>
+     <width>951</width>
      <height>1141</height>
     </rect>
    </property>
@@ -188,8 +188,8 @@
      <rect>
       <x>10</x>
       <y>90</y>
-      <width>861</width>
-      <height>321</height>
+      <width>921</width>
+      <height>351</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -200,7 +200,7 @@
       <property name="geometry">
        <rect>
         <x>270</x>
-        <y>40</y>
+        <y>10</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -210,7 +210,7 @@
       <property name="geometry">
        <rect>
         <x>170</x>
-        <y>160</y>
+        <y>110</y>
         <width>91</width>
         <height>31</height>
        </rect>
@@ -223,7 +223,7 @@
       <property name="geometry">
        <rect>
         <x>270</x>
-        <y>140</y>
+        <y>110</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -233,7 +233,7 @@
       <property name="geometry">
        <rect>
         <x>270</x>
-        <y>90</y>
+        <y>60</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -243,7 +243,7 @@
       <property name="geometry">
        <rect>
         <x>170</x>
-        <y>50</y>
+        <y>10</y>
         <width>91</width>
         <height>41</height>
        </rect>
@@ -256,7 +256,7 @@
       <property name="geometry">
        <rect>
         <x>170</x>
-        <y>200</y>
+        <y>170</y>
         <width>71</width>
         <height>41</height>
        </rect>
@@ -269,7 +269,7 @@
       <property name="geometry">
        <rect>
         <x>170</x>
-        <y>110</y>
+        <y>60</y>
         <width>91</width>
         <height>31</height>
        </rect>
@@ -282,7 +282,7 @@
       <property name="geometry">
        <rect>
         <x>270</x>
-        <y>190</y>
+        <y>160</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -291,14 +291,60 @@
      <widget class="QPushButton" name="GetWakeTestResultBtn">
       <property name="geometry">
        <rect>
-        <x>590</x>
-        <y>190</y>
+        <x>600</x>
+        <y>270</y>
         <width>141</width>
         <height>41</height>
        </rect>
       </property>
       <property name="text">
        <string>获取唤醒统计次数</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_11">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>220</y>
+        <width>91</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>播放完成时间:</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="WakePlayFinishTimeEdit">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>220</y>
+        <width>311</width>
+        <height>41</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_16">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>270</y>
+        <width>91</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>唤醒完成时间:</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="WakeFinishTimeEdit">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>270</y>
+        <width>311</width>
+        <height>41</height>
+       </rect>
       </property>
      </widget>
     </widget>
@@ -372,14 +418,27 @@
        <string>时间间隔:</string>
       </property>
      </widget>
+     <widget class="QPushButton" name="GetCharTestDataBtn">
+      <property name="geometry">
+       <rect>
+        <x>560</x>
+        <y>120</y>
+        <width>171</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>获取字准数据计算</string>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QTextEdit" name="textEdit">
     <property name="geometry">
      <rect>
-      <x>-20</x>
+      <x>10</x>
       <y>450</y>
-      <width>911</width>
+      <width>921</width>
       <height>591</height>
      </rect>
     </property>

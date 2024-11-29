@@ -26,6 +26,7 @@ public slots:
     void on_WakeTestPauseBtn_Clicked();
     void on_WakeTestStopBtn_Clicked();
     void on_GetWakeTestResultBtn_Clicked();
+    void on_GetCharTestDataBtn_Clicked();
     void on_AudioDevComboBox_CurrentTextChanged(QString deviceName);
     void on_PlayModeComboBox_CurrentIndexChanged(int indx);
     void on_TestModeComboBox_CurrentIndexChanged(int indx);
