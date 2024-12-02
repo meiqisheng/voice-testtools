@@ -6,7 +6,7 @@
 #include <QDateTime>
 #include <QBuffer>
 
-#define APP_VERSION "1.0.7"
+#define APP_VERSION "1.0.10"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -20,6 +20,7 @@ Widget::Widget(QWidget *parent)
     this->setWindowTitle(title);
     QFont font("Microsoft YaHei", 12);
     ui->textEdit->setFont(font);
+    ui->SetPlaySumEdit->setText(QString("%1").arg(mWakePlaySum));
 
     ui->VolumeSlider->setRange(0,100);
     ui->VolumeSlider->setValue(10);
@@ -48,6 +49,10 @@ Widget::Widget(QWidget *parent)
     connect(ui->WakeTestStopBtn,&QPushButton::clicked,this, &Widget::on_WakeTestStopBtn_Clicked);
     connect(ui->GetWakeTestResultBtn,&QPushButton::clicked,this,&Widget::on_GetWakeTestResultBtn_Clicked);
     connect(ui->GetCharTestDataBtn,&QPushButton::clicked,this,&Widget::on_GetCharTestDataBtn_Clicked);
+    connect(ui->SetPlaySumBtn,&QPushButton::clicked,this,&Widget::on_SetPlaySumBtn_Clicked);
+    connect(ui->ClearTextEditBtn,&QPushButton::clicked,this,&Widget::on_ClearTextEditBtn_Clicked);
+    connect(ui->CalcDelayTimeBtn,&QPushButton::clicked,this,&Widget::on_CalcDelayTimeBtn_Clicked);
+    connect(ui->ClearDevWakeRecordBtn,&QPushButton::clicked,this,&Widget::on_ClearDevWakeRecordBtn_Clicked);
     connect(ui->AudioDevComboBox,&QComboBox::currentTextChanged, this , &Widget::on_AudioDevComboBox_CurrentTextChanged);
   //  connect(ui->PlayModeComboBox,&QComboBox::currentIndexChanged, this , &Widget::on_PlayModeComboBox_CurrentIndexChanged);
     connect(ui->PlayModeComboBox,SIGNAL(currentIndexChanged(int)),
@@ -101,6 +106,7 @@ Widget::~Widget()
     if (mCharacterTestPlayer != nullptr){
        delete mCharacterTestPlayer;
     }
+   // mAdbProcess->deleteLater();  // 释放资源
     delete mAdbProcess;
     delete mTimer;
     delete ui;
@@ -117,12 +123,7 @@ void Widget::on_VolumeSlider_ValueChanged(int value)
 
 void Widget::adbProcessExecude(QString &adbPath, QStringList &arguments)
 {
- //   QString adbPath = "adb";
- //   QStringList arguments;
- //   arguments << "shell" << "cat " << "/sdcard/test.txt";
- //   qDebug() << "adbProcessExecude";
     if (mAdbProcess->state() == QProcess::NotRunning) {
-       // mAdbProcess->();  // 清除之前的数据
         mAdbProcess->close();
         qDebug() << "mAdbProcess->start";
         mAdbProcess->start(adbPath, arguments);
@@ -171,17 +172,22 @@ void Widget::adbCmdOutput()
   //  QString str = QString::asprintf("%llu",mWakeDevCount);
   //  ui->WakeDevCountEdit->setText(str);
     qDebug() << "Output:" << output;
+    QString str = "Output:" + output;
+    ui->textEdit->append(str);
 }
 
 void Widget::adbCmdErrorOutput()
 {
     QByteArray error = mAdbProcess->readAllStandardError();
     qDebug() << "Error:" << error;
+    QString str = "Error:" + error;
+    ui->textEdit->append(str);
 }
 void Widget::adbCmdFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitStatus == QProcess::NormalExit && exitCode == 0) {
         qDebug() << "adb cmd completed successfully";
+        ui->textEdit->append("adb cmd completed successfully");
         if (mCmdType == WakeTest){  //解析waketest获取的数据
            analysisWakeTestResult();
         }else{ //解析字准测试数据
@@ -190,7 +196,7 @@ void Widget::adbCmdFinished(int exitCode, QProcess::ExitStatus exitStatus)
     } else {
         qDebug() << "adb cmd failed with exit code:" << exitCode;
     }
-  //  mAdbProcess->deleteLater();  // 释放资源
+   // mAdbProcess->deleteLater();  // 释放资源
 }
 
 bool Widget::addAudiofileToList(QString fileName)
@@ -222,19 +228,13 @@ void Widget::on_ClickTimerTimeout_do()
     currentIndex = index;
     strAudioFileName = audioFiles.at(currentIndex);
     ptrPlayer->setAudioFile(strAudioFileName);
-    //mPlayer->switchFile(strAudioFileName);
     qDebug() << "row:" << index  <<",path:"<< audioFiles.at(index);
 }
 
 void Widget::onItemClicked(QListWidgetItem * item)
 {
+    //实现单击与双击区别开
     mClickTimer->start(300);
- //   int index = ui->listWidget->row(item);
- //   currentIndex = index;
-//    strAudioFileName = audioFiles.at(currentIndex);
-//    ptrPlayer->setAudioFile(strAudioFileName);
-    //mPlayer->switchFile(strAudioFileName);
-//    qDebug() << "row:" << index  <<",path:"<< audioFiles.at(index);
 }
 
 void Widget::onItemDoubleClicked(QListWidgetItem * item)
@@ -295,7 +295,11 @@ void Widget::on_AudioFileBtn_Clicked()
       // ui->listWidget->addItem(fileName);
        if (addAudiofileToList(fileName)){
             audioFiles.push_back(strAudioFileName);
-            currentIndex = qMin(currentIndex, ui->listWidget->count() - 1);
+            if (currentIndex < 0){
+                currentIndex = 0;
+            }else {
+                currentIndex = qMin(currentIndex, ui->listWidget->count() - 1);
+            }
             ui->listWidget->setCurrentRow(currentIndex);
             strAudioFileName = audioFiles.at(currentIndex);
        }
@@ -320,7 +324,8 @@ void Widget::on_WakeTestBtn_Clicked()
 
     ptrPlayer->play();
     mAudioPlayerStop = false;
-
+    QString str = QString::asprintf("%llu",mWakePlayCycleCount);
+    ui->WakePlayCycleCountEdit->setText(str);
 }
 
 void Widget::on_WakeTestPauseBtn_Clicked()
@@ -344,6 +349,7 @@ void Widget::on_WakeTestStopBtn_Clicked()
        ptrPlayer->stop();
     }
     mAudioPlayerStop = true;
+    mWakePlayCycleCount = 0;
 }
 
 void Widget::on_GetWakeTestResultBtn_Clicked()
@@ -361,6 +367,35 @@ void Widget::on_GetCharTestDataBtn_Clicked()
     QString adbPath = "adb";
     QStringList cmdList;
     cmdList << "pull" << "/sdcard/wake.log" << "./log/";
+    mCmdType = CharTest;
+    adbProcessExecude(adbPath,cmdList);
+}
+
+void Widget::on_SetPlaySumBtn_Clicked()
+{
+    QString str = ui->SetPlaySumEdit->text();
+    mWakePlaySum = str.toInt(); //设置播放次数
+}
+
+void Widget::on_ClearTextEditBtn_Clicked()
+{
+     ui->textEdit->clear();
+}
+
+void Widget::on_CalcDelayTimeBtn_Clicked()
+{
+    QDateTime palyDateTime = QDateTime::fromString(ui->WakePlayFinishTimeEdit->text(), Qt::ISODate);
+    QDateTime wakeDevDateTime = QDateTime::fromString(ui->WakeFinishTimeEdit->text(), Qt::ISODate);
+    qint64 millisDiff = palyDateTime.msecsTo(wakeDevDateTime);
+
+    ui->WakeDelayTimeEdit->setText(QString("%1").arg(millisDiff));
+}
+
+void Widget::on_ClearDevWakeRecordBtn_Clicked()
+{
+    QString adbPath = "adb";
+    QStringList cmdList;
+    cmdList << "shell" << "rm" << "/sdcard/wake.log";
     mCmdType = CharTest;
     adbProcessExecude(adbPath,cmdList);
 }
@@ -390,7 +425,7 @@ void Widget::on_TestModeComboBox_CurrentIndexChanged(int index)
 void Widget::on_TimerTimeout_do()
 {
     mTimer->stop();
-    if (mPlayMode == SingleLoop) { //
+    if (mPlayMode == SingleLoop && mWakePlayCycleCount < mWakePlaySum ) { //
         on_WakeTestBtn_Clicked();
     }else if (mPlayMode == Sequential){  //顺序播放
         currentIndex++;
@@ -401,7 +436,7 @@ void Widget::on_TimerTimeout_do()
         strAudioFileName = audioFiles.at(currentIndex);
         ui->listWidget->setCurrentRow(currentIndex);
         on_WakeTestBtn_Clicked();
-    }else if (mPlayMode == SequentialLoop){ //顺序循环播放
+    }else if (mPlayMode == SequentialLoop && mWakePlayCycleCount < mWakePlaySum){ //顺序循环播放
         currentIndex = (currentIndex+1) % ui->listWidget->count();
         strAudioFileName = audioFiles.at(currentIndex);
         ui->listWidget->setCurrentRow(currentIndex);
@@ -433,11 +468,11 @@ void Widget::AudioPlayFinished()
        mWakePlayCycleCount++;
        QDateTime currentDateTime = QDateTime::currentDateTime();
        QString userTest = "当前播放次数:" + QString::number(mWakePlayCycleCount)
-                          +" 当前日期时间:" + currentDateTime.toString("yyyy-MM-dd HH:mm:ss");
+                          +" 当前日期时间:" + currentDateTime.toString("yyyy-MM-dd HH:mm:ss.zzz");
        ui->textEdit->append(userTest);
        QString str = QString::asprintf("%llu",mWakePlayCycleCount);
        ui->WakePlayCycleCountEdit->setText(str);
-       ui->WakePlayFinishTimeEdit->setText(currentDateTime.toString("yyyy-MM-dd HH:mm:ss"));
+       ui->WakePlayFinishTimeEdit->setText(currentDateTime.toString("yyyy-MM-dd HH:mm:ss.zzz"));
     }else{ //字准测试播放完成
        mCharPlayCycleCount++;
        QString str = QString::asprintf("%llu",mCharPlayCycleCount);

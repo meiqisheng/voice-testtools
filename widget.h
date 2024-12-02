@@ -27,6 +27,10 @@ public slots:
     void on_WakeTestStopBtn_Clicked();
     void on_GetWakeTestResultBtn_Clicked();
     void on_GetCharTestDataBtn_Clicked();
+    void on_SetPlaySumBtn_Clicked();
+    void on_ClearTextEditBtn_Clicked();
+    void on_CalcDelayTimeBtn_Clicked();
+    void on_ClearDevWakeRecordBtn_Clicked();
     void on_AudioDevComboBox_CurrentTextChanged(QString deviceName);
     void on_PlayModeComboBox_CurrentIndexChanged(int indx);
     void on_TestModeComboBox_CurrentIndexChanged(int indx);
@@ -56,6 +60,7 @@ private:
     QString strAudioFileName;
     qint64 mWakeTestIntervalTime = 1000; //每次播放完成的等待下一次的时间间隔
     qint64 mWakePlayCycleCount = 0;   //循环播放唤醒词次数
+    qint64 mWakePlaySum = 100;        //要求播放的次数
     qint64 mWakeDevCount = 0;         //唤醒设备的次数
     float mWakeupRate = 0.0;          //唤醒率计算
     qint64 mCharTestInterValTIme = 1000;
