@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1518</width>
-    <height>1073</height>
+    <height>810</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -532,9 +532,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>530</y>
+      <y>520</y>
       <width>931</width>
-      <height>541</height>
+      <height>281</height>
      </rect>
     </property>
    </widget>
@@ -542,7 +542,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>490</y>
+      <y>480</y>
       <width>141</width>
       <height>41</height>
      </rect>
@@ -551,11 +551,11 @@
      <string>清空日志</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_4">
+   <widget class="QPushButton" name="SaveLogFileBtn">
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>490</y>
+      <y>480</y>
       <width>141</width>
       <height>41</height>
      </rect>
@@ -571,7 +571,7 @@
      <x>10</x>
      <y>230</y>
      <width>541</width>
-     <height>831</height>
+     <height>571</height>
     </rect>
    </property>
   </widget>

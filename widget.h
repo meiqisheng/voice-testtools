@@ -5,6 +5,7 @@
 #include <QListWidgetItem>
 #include <QProcess>
 #include <QTimer>
+#include <QTextEdit>
 
 #include "audioplayer.h"
 
@@ -31,6 +32,7 @@ public slots:
     void on_ClearTextEditBtn_Clicked();
     void on_CalcDelayTimeBtn_Clicked();
     void on_ClearDevWakeRecordBtn_Clicked();
+    void on_SaveLogFileBtn_Clicked();
     void on_AudioDevComboBox_CurrentTextChanged(QString deviceName);
     void on_PlayModeComboBox_CurrentIndexChanged(int indx);
     void on_TestModeComboBox_CurrentIndexChanged(int indx);
@@ -51,6 +53,7 @@ private:
     bool addAudiofileToList(QString fileName);  //成功返回true,失败返回false，防止名字重复
     void analysisWakeTestResult();
     void analysisCharTestResult();
+    void saveTextEditContentToFile(QTextEdit* textEdit, const QString& filePath);
 private:
     Ui::Widget *ui;
     AudioPlayer * mPlayer;

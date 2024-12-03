@@ -6,7 +6,7 @@
 #include <QDateTime>
 #include <QBuffer>
 
-#define APP_VERSION "1.0.10"
+#define APP_VERSION "1.0.12"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -52,6 +52,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->SetPlaySumBtn,&QPushButton::clicked,this,&Widget::on_SetPlaySumBtn_Clicked);
     connect(ui->ClearTextEditBtn,&QPushButton::clicked,this,&Widget::on_ClearTextEditBtn_Clicked);
     connect(ui->CalcDelayTimeBtn,&QPushButton::clicked,this,&Widget::on_CalcDelayTimeBtn_Clicked);
+    connect(ui->SaveLogFileBtn,&QPushButton::clicked,this,&Widget::on_SaveLogFileBtn_Clicked);
     connect(ui->ClearDevWakeRecordBtn,&QPushButton::clicked,this,&Widget::on_ClearDevWakeRecordBtn_Clicked);
     connect(ui->AudioDevComboBox,&QComboBox::currentTextChanged, this , &Widget::on_AudioDevComboBox_CurrentTextChanged);
   //  connect(ui->PlayModeComboBox,&QComboBox::currentIndexChanged, this , &Widget::on_PlayModeComboBox_CurrentIndexChanged);
@@ -149,12 +150,14 @@ void Widget::analysisWakeTestResult()
     }
     ui->WakeFinishTimeEdit->setText(line.mid(5));
     file.close();  // 关闭文件
+
     QString str = QString::asprintf("%llu",mWakeDevCount);
     ui->WakeDevCountEdit->setText(str);
-    if (mWakePlayCycleCount == 0){
+    qint64 wakePlayCycleCount = ui->WakePlayCycleCountEdit->text().toInt();
+    if (wakePlayCycleCount == 0){
         mWakeupRate = 0;
     }else{
-        mWakeupRate = mWakeDevCount *100.0 / mWakePlayCycleCount;
+        mWakeupRate = mWakeDevCount *100.0 / wakePlayCycleCount;
     }
     str = QString::asprintf("%f",mWakeupRate);
     ui->WakeupRateEdit->setText(str);
@@ -338,7 +341,9 @@ void Widget::on_WakeTestPauseBtn_Clicked()
       ptrPlayer->pause();
       ui->WakeTestPauseBtn->setText("继续");
     }else {
-        ptrPlayer->play();
+        if (mAudioPlayerStop != true){
+            ptrPlayer->play();
+        }
         ui->WakeTestPauseBtn->setText("暂停");
     }
 }
@@ -349,7 +354,6 @@ void Widget::on_WakeTestStopBtn_Clicked()
        ptrPlayer->stop();
     }
     mAudioPlayerStop = true;
-    mWakePlayCycleCount = 0;
 }
 
 void Widget::on_GetWakeTestResultBtn_Clicked()
@@ -400,6 +404,35 @@ void Widget::on_ClearDevWakeRecordBtn_Clicked()
     adbProcessExecude(adbPath,cmdList);
 }
 
+void Widget::saveTextEditContentToFile(QTextEdit *textEdit, const QString &filePath)
+{
+    // 获取 QTextEdit 的内容
+       QString content = textEdit->toPlainText(); // 获取纯文本内容
+       // QString content = textEdit->toHtml(); // 如果需要保存 HTML 格式
+
+       // 打开文件
+       QFile file(filePath);
+       if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+           qDebug() << "无法打开文件:" << filePath;
+           return;
+       }
+
+       // 写入文件
+       QTextStream out(&file);
+       out << content;
+
+       // 关闭文件
+       file.close();
+       qDebug() << "文本已保存到:" << filePath;
+}
+
+void Widget::on_SaveLogFileBtn_Clicked()
+{
+     QString filename = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+     filename = "./log/" + filename + ".log";
+     saveTextEditContentToFile(ui->textEdit,filename);
+}
+
 void Widget::on_AudioDevComboBox_CurrentTextChanged(QString deviceName)
 {
     strAudioOutputDevice = deviceName;
@@ -425,6 +458,10 @@ void Widget::on_TestModeComboBox_CurrentIndexChanged(int index)
 void Widget::on_TimerTimeout_do()
 {
     mTimer->stop();
+    if (mAudioPlayerStop == true){
+        mWakePlayCycleCount = 0;
+        return;
+    }
     if (mPlayMode == SingleLoop && mWakePlayCycleCount < mWakePlaySum ) { //
         on_WakeTestBtn_Clicked();
     }else if (mPlayMode == Sequential){  //顺序播放
@@ -465,6 +502,7 @@ void Widget::AudioPlayFinished()
     }
     //此处可以优化
     if (ui->TestModeComboBox->currentIndex() == 0){ //唤醒测试播放完成
+
        mWakePlayCycleCount++;
        QDateTime currentDateTime = QDateTime::currentDateTime();
        QString userTest = "当前播放次数:" + QString::number(mWakePlayCycleCount)
@@ -480,6 +518,7 @@ void Widget::AudioPlayFinished()
     }
     //adbProcessExecude(mAdbPath,mWakeArgsList);  //采用异步方式处理
     if (mAudioPlayerStop == true){
+        mWakePlayCycleCount = 0;
         return;
     }
     //此处可以优化
@@ -490,9 +529,10 @@ void Widget::AudioPlayFinished()
     }
 }
 
+
 void Widget::AudioPlayPositionChanged(qint64 position)
 {
-   // qDebug() << "Current Position: " << position << " seconds";
+    qDebug() << "Current Position: " << position << " seconds";
 }
 
 void Widget::AudioPlayErrorOccurred(const QString &error)
