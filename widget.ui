@@ -419,8 +419,8 @@
      <widget class="QPushButton" name="CalcDelayTimeBtn">
       <property name="geometry">
        <rect>
-        <x>490</x>
-        <y>310</y>
+        <x>640</x>
+        <y>260</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -440,6 +440,61 @@
       </property>
       <property name="text">
        <string>清除设备唤醒记录</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="UpdateTimeLabel">
+      <property name="geometry">
+       <rect>
+        <x>640</x>
+        <y>210</y>
+        <width>201</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(255, 255, 255);
+font: 16pt &quot;新宋体&quot;;
+color: rgb(255, 0, 0);
+font: 75 12pt &quot;Agency FB&quot;;</string>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="TimeCompensationEdit">
+      <property name="geometry">
+       <rect>
+        <x>640</x>
+        <y>310</y>
+        <width>141</width>
+        <height>41</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_18">
+      <property name="geometry">
+       <rect>
+        <x>480</x>
+        <y>310</y>
+        <width>151</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>补偿时间参数(ms):</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="DisplayDateTimeBtn">
+      <property name="geometry">
+       <rect>
+        <x>490</x>
+        <y>210</y>
+        <width>141</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>显示时间</string>
       </property>
      </widget>
     </widget>

@@ -33,6 +33,7 @@ public slots:
     void on_CalcDelayTimeBtn_Clicked();
     void on_ClearDevWakeRecordBtn_Clicked();
     void on_SaveLogFileBtn_Clicked();
+    void on_DisplayDateTimeBtn_Clicked();
     void on_AudioDevComboBox_CurrentTextChanged(QString deviceName);
     void on_PlayModeComboBox_CurrentIndexChanged(int indx);
     void on_TestModeComboBox_CurrentIndexChanged(int indx);
@@ -46,6 +47,7 @@ public slots:
     void adbCmdFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void on_TimerTimeout_do();
     void on_ClickTimerTimeout_do();
+    void on_UpdateTime_do();
     void on_WakeIntervalTimeEdit_EditingFinished();
     void on_CharTestIntervalTimeEdit_EditingFinished();
     void on_VolumeSlider_ValueChanged(int value);
@@ -94,6 +96,7 @@ private:
     QStringList mCharacterArgsList;  // 字准结果读取命令
     QTimer * mTimer;
     QTimer * mClickTimer;
+    QTimer * mRealTimer;
 
 };
 #endif // WIDGET_H

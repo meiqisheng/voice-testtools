@@ -6,7 +6,7 @@
 #include <QDateTime>
 #include <QBuffer>
 
-#define APP_VERSION "1.0.12"
+#define APP_VERSION "1.0.15"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -54,6 +54,8 @@ Widget::Widget(QWidget *parent)
     connect(ui->CalcDelayTimeBtn,&QPushButton::clicked,this,&Widget::on_CalcDelayTimeBtn_Clicked);
     connect(ui->SaveLogFileBtn,&QPushButton::clicked,this,&Widget::on_SaveLogFileBtn_Clicked);
     connect(ui->ClearDevWakeRecordBtn,&QPushButton::clicked,this,&Widget::on_ClearDevWakeRecordBtn_Clicked);
+    connect(ui->DisplayDateTimeBtn,&QPushButton::clicked,this,&Widget::on_DisplayDateTimeBtn_Clicked);
+
     connect(ui->AudioDevComboBox,&QComboBox::currentTextChanged, this , &Widget::on_AudioDevComboBox_CurrentTextChanged);
   //  connect(ui->PlayModeComboBox,&QComboBox::currentIndexChanged, this , &Widget::on_PlayModeComboBox_CurrentIndexChanged);
     connect(ui->PlayModeComboBox,SIGNAL(currentIndexChanged(int)),
@@ -94,6 +96,9 @@ Widget::Widget(QWidget *parent)
     connect(mClickTimer,&QTimer::timeout, this, &Widget::on_ClickTimerTimeout_do);
     ui->stackedWidget->setCurrentIndex(0);
     ptrPlayer = mPlayer; //默认设置为唤醒测试播放器
+    mRealTimer = new QTimer(this);
+   connect(mRealTimer,&QTimer::timeout, this, &Widget::on_UpdateTime_do);
+   //mRealTimer->start(17);
 }
 
 Widget::~Widget()
@@ -110,12 +115,14 @@ Widget::~Widget()
    // mAdbProcess->deleteLater();  // 释放资源
     delete mAdbProcess;
     delete mTimer;
+    delete mClickTimer;
+    delete mRealTimer;
     delete ui;
 }
 
 void Widget::on_VolumeSlider_ValueChanged(int value)
 {
-     qreal volumeVal = (value / 1000.00 * 2);
+     qreal volumeVal = (value / 1000.00 * 5);
      qDebug() << volumeVal;
      if (ptrPlayer != nullptr){
         ptrPlayer->setVolume(volumeVal);
@@ -222,6 +229,12 @@ bool Widget::addAudiofileToList(QString fileName)
                 qDebug("项目已存在，不重复添加");
                 return false;
             }
+}
+
+void Widget::on_UpdateTime_do()
+{
+     QString dateTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+     ui->UpdateTimeLabel->setText(dateTime);
 }
 
 void Widget::on_ClickTimerTimeout_do()
@@ -388,10 +401,16 @@ void Widget::on_ClearTextEditBtn_Clicked()
 
 void Widget::on_CalcDelayTimeBtn_Clicked()
 {
-    QDateTime palyDateTime = QDateTime::fromString(ui->WakePlayFinishTimeEdit->text(), Qt::ISODate);
-    QDateTime wakeDevDateTime = QDateTime::fromString(ui->WakeFinishTimeEdit->text(), Qt::ISODate);
-    qint64 millisDiff = palyDateTime.msecsTo(wakeDevDateTime);
+    QDateTime palyDateTime = QDateTime::fromString(ui->WakePlayFinishTimeEdit->text().trimmed(), "yyyy-MM-dd HH:mm:ss.zzz");
+    QDateTime wakeDevDateTime = QDateTime::fromString(ui->WakeFinishTimeEdit->text().trimmed(),"yyyy-MM-dd HH:mm:ss:zzz");
+    if (!palyDateTime.isValid() || !wakeDevDateTime.isValid()) {
+        ui->textEdit->append("Invalid QDateTime!");
+        return;
+    }
 
+    qint64 timeCompensation = ui->TimeCompensationEdit->text().toInt();
+    qint64 millisDiff = palyDateTime.msecsTo(wakeDevDateTime);
+    millisDiff += timeCompensation;
     ui->WakeDelayTimeEdit->setText(QString("%1").arg(millisDiff));
 }
 
@@ -402,6 +421,17 @@ void Widget::on_ClearDevWakeRecordBtn_Clicked()
     cmdList << "shell" << "rm" << "/sdcard/wake.log";
     mCmdType = CharTest;
     adbProcessExecude(adbPath,cmdList);
+}
+
+void Widget::on_DisplayDateTimeBtn_Clicked()
+{
+     if (ui->DisplayDateTimeBtn->text() == "显示时间"){
+         mRealTimer->start(17);
+         ui->DisplayDateTimeBtn->setText("停止显示");
+     }else {
+         mRealTimer->stop();
+         ui->DisplayDateTimeBtn->setText("显示时间");
+     }
 }
 
 void Widget::saveTextEditContentToFile(QTextEdit *textEdit, const QString &filePath)
@@ -517,7 +547,7 @@ void Widget::AudioPlayFinished()
        ui->CharTestPalyCountEdit->setText(str);
     }
     //adbProcessExecude(mAdbPath,mWakeArgsList);  //采用异步方式处理
-    if (mAudioPlayerStop == true){
+    if (mAudioPlayerStop == true || mWakePlayCycleCount >= mWakePlaySum ){
         mWakePlayCycleCount = 0;
         return;
     }
