@@ -1,4 +1,5 @@
 #include "audioplayer.h"
+#include <QDateTime>
 
 AudioPlayer::AudioPlayer(const QString &filePath, const QString &outputDeviceName)
     : audioFilePath(filePath), outputDeviceName(outputDeviceName) {
@@ -11,7 +12,114 @@ AudioPlayer::~AudioPlayer() {
     releaseResources();
 }
 
+// 用来存储原始频率和增益
+struct EqPoint {
+    double frequency;
+    double gain;
+};
+
+// audioplayer.cpp
+void AudioPlayer::onSaveFlagChanged(bool flag) {
+    mSaveFlag = flag;
+    qDebug() << "AudioPlayer mSaveFlag:" << mSaveFlag;
+}
+
+bool AudioPlayer::initEQFilters(const std::vector<double> &frequencies, const std::vector<double> &gains, double bandwidth) {
+    int ret;
+
+    filterGraph = avfilter_graph_alloc();
+    if (!filterGraph) {
+        return false;
+    }
+
+    const AVFilter *srcFilter = avfilter_get_by_name("abuffer");
+    const AVFilter *sinkFilter = avfilter_get_by_name("abuffersink");
+
+    char args[512];
+    snprintf(args, sizeof(args),
+             "time_base=1/%d:sample_rate=%d:sample_fmt=%s:channel_layout=0x%" PRIx64,
+             codecContext->time_base.den,
+             codecContext->sample_rate,
+             av_get_sample_fmt_name(codecContext->sample_fmt),
+             codecContext->channel_layout);
+
+    ret = avfilter_graph_create_filter(&srcFilterCtx, srcFilter, "in", args, nullptr, filterGraph);
+    if (ret < 0) {
+        return false;
+    }
+
+    ret = avfilter_graph_create_filter(&sinkFilterCtx, sinkFilter, "out", nullptr, nullptr, filterGraph);
+    if (ret < 0) {
+        return false;
+    }
+
+    // 准备插值
+    std::vector<EqPoint> eqPoints;
+    for (size_t i = 0; i < frequencies.size(); ++i) {
+        eqPoints.push_back({ frequencies[i], gains[i] });
+    }
+
+    // 生成filter graph描述字符串
+    std::string filterDesc;
+    filterDesc += "[in]";  // 起点
+    filterDesc += "firequalizer=gain_entry='";
+    // ================ 关键修改：直接构建参数 ================
+    // 生成EQ点字符串（格式：f1:g1:w1|f2:g2:w2|...）
+    float Bandwidths1 = 5.0;
+    for (size_t i = 0; i < frequencies.size(); ++i) {
+        // 确保带宽值在合法范围内
+        char point[64];
+        snprintf(point, sizeof(point), "entry(%.1f,%.1f)",
+                 frequencies[i], gains[i]);
+
+        filterDesc += point;
+        if (i != frequencies.size() - 1) {
+            filterDesc += ";";  // 用竖杠分隔不同EQ点
+        }
+    }
+    filterDesc += "'";  // 结束gain参数
+    filterDesc += "[out]";  // 终点
+    qDebug() << "Final filterDesc: " << filterDesc.c_str();
+
+    // 分配输入输出
+    AVFilterInOut *outputs = avfilter_inout_alloc();
+    AVFilterInOut *inputs = avfilter_inout_alloc();
+
+    outputs->name = av_strdup("in");
+    outputs->filter_ctx = srcFilterCtx;
+    outputs->pad_idx = 0;
+    outputs->next = nullptr;
+
+    inputs->name = av_strdup("out");
+    inputs->filter_ctx = sinkFilterCtx;
+    inputs->pad_idx = 0;
+    inputs->next = nullptr;
+
+    // 解析整个图
+    ret = avfilter_graph_parse_ptr(filterGraph, filterDesc.c_str(), &inputs, &outputs, nullptr);
+    if (ret < 0) {
+        return false;
+    }
+
+    // 配置图
+    ret = avfilter_graph_config(filterGraph, nullptr);
+    if (ret < 0) {
+        return false;
+    }
+    return true;
+}
+
+
 bool AudioPlayer::initializeFFmpeg() {
+    // 设置 FFmpeg 日志级别和回调，用于调试 filter 报错
+    av_log_set_level(AV_LOG_DEBUG);
+    av_log_set_callback([](void*, int level, const char* fmt, va_list args) {
+        if (level <= AV_LOG_ERROR) {
+            char buf[1024];
+            vsnprintf(buf, sizeof(buf), fmt, args);
+            qDebug() << "[FFmpeg]" << buf;
+        }
+    });
     if (audioFilePath.isEmpty()){
         return false;
     }
@@ -55,8 +163,17 @@ bool AudioPlayer::initializeFFmpeg() {
         emit errorOccurred("Failed to copy codec parameters to context");
         return false;
     }
+    // 如果 channel_layout 为 0，手动推断
+    if (codecContext->channel_layout == 0 && codecContext->channels > 0) {
+        codecContext->channel_layout = av_get_default_channel_layout(codecContext->channels);
+    }
     if (avcodec_open2(codecContext, codec, nullptr) < 0) {
         emit errorOccurred("Failed to open codec");
+        return false;
+    }
+    // 初始化 EQ 滤波器
+    if (!initEQFilters(mFrequencies, mGains, mBandwidth)) {
+        emit errorOccurred("Failed to initialize EQ filters");
         return false;
     }
 
@@ -92,7 +209,7 @@ bool AudioPlayer::initializeFFmpeg() {
                                     AV_SAMPLE_FMT_S16,
                                     codecContext->sample_rate,
                                     codecContext->channel_layout,
-                                    codecContext->sample_fmt,
+                                    AV_SAMPLE_FMT_FLTP,
                                     codecContext->sample_rate,
                                     0, nullptr);
     if (!swrContext){
@@ -126,6 +243,15 @@ bool AudioPlayer::initializeFFmpeg() {
         return false;
     }
 
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    QString saveFileName = QString("audio_%1.pcm").arg(timestamp);
+    if(mSaveFlag){
+        saveAudioPCMFile.setFileName(saveFileName);
+        if (!saveAudioPCMFile.open(QIODevice::WriteOnly)) {
+            qDebug() << "open file failed";
+        }
+    }
+
     return true;
 }
 
@@ -136,6 +262,9 @@ void AudioPlayer::cleanupFFmpeg() {
     swr_free(&swrContext);
     avcodec_free_context(&codecContext);
     avformat_close_input(&formatContext);
+    if(mSaveFlag){
+        saveAudioPCMFile.close();
+    }
 }
 
 
@@ -192,9 +321,41 @@ void AudioPlayer::setVolume(qreal vol)
      audioOutput->setVolume(volValue);
 }
 
+bool AudioPlayer::applyEQ(AVFrame *inputFrame, AVFrame *outputFrame) {
+    int ret;
+//    qDebug() << "inputFrame->format:" << inputFrame->format;
+//    qDebug() << "inputFrame->sample_rate:" << inputFrame->sample_rate;
+//    qDebug() << "inputFrame->channel_layout:" << inputFrame->channel_layout;
+//    qDebug() << "codecContext->sample_fmt:" << codecContext->sample_fmt;
+//    qDebug() << "codecContext->sample_rate:" << codecContext->sample_rate;
+//    qDebug() << "codecContext->channel_layout:" << codecContext->channel_layout;
+    inputFrame->channel_layout = codecContext->channel_layout;
+    inputFrame->sample_rate = codecContext->sample_rate;
+    inputFrame->format = codecContext->sample_fmt;
+    // 推送音频帧到滤波器图
+    ret = av_buffersrc_add_frame(srcFilterCtx, inputFrame);
+    if (ret < 0) {
+      //  qWarning() << "Failed to push frame to filter graph:" << av_err2str(ret);
+        return false;
+    }
+
+    // 从滤波器图拉取处理后的音频帧
+    ret = av_buffersink_get_frame(sinkFilterCtx, outputFrame);
+    if (ret < 0) {
+       // qWarning() << "Failed to pull frame from filter graph:" << av_err2str(ret);
+        return false;
+    }
+
+    return true;
+}
+
 void AudioPlayer::run() {
     if (!initializeFFmpeg()) {
         qWarning() << "Failed to initialize FFmpeg";
+        return;
+    }
+    AVFrame *filteredFrame = av_frame_alloc();
+    if (!filteredFrame){
         return;
     }
 
@@ -216,9 +377,9 @@ void AudioPlayer::run() {
         }
     }
     audioOutput = new QAudioOutput(deviceInfo.isNull() ? QAudioDeviceInfo::defaultOutputDevice() : deviceInfo, format, this);
+    audioOutput->setBufferSize(192000); // 加大缓冲区
     audioOutput->setVolume(volValue);
     audioDevice = audioOutput->start();
-
     timer.start();
     startPts = 0;
 
@@ -252,15 +413,46 @@ void AudioPlayer::run() {
                 if (elapsed < frameTimeMs) {
                     QThread::msleep(frameTimeMs - elapsed);
                 }
-
+                if (!applyEQ(frame,filteredFrame)){
+                    continue;
+                }
                 // 转换数据并写入音频输出设备
                 uint8_t *outputData = nullptr;
-                int outputSize = av_samples_alloc(&outputData, nullptr, codecContext->channels,
-                                                  frame->nb_samples, AV_SAMPLE_FMT_S16, 0);
-                swr_convert(swrContext, &outputData, frame->nb_samples,
-                            (const uint8_t **)frame->data, frame->nb_samples);
-                audioDevice->write((const char *)outputData, outputSize);
-                av_freep(&outputData);  // 释放转换后的数据
+                int linesize = 0;
+                av_samples_alloc(&outputData, &linesize, codecContext->channels,
+                                 filteredFrame->nb_samples, AV_SAMPLE_FMT_S16, 0);
+                int convertedSamples = swr_convert(swrContext, &outputData, filteredFrame->nb_samples,
+                                                   (const uint8_t **)filteredFrame->data, filteredFrame->nb_samples);
+                int outputSize = convertedSamples * codecContext->channels * 2;
+//                int outputSize = av_samples_alloc(&outputData, nullptr, codecContext->channels,
+//                                                  filteredFrame->nb_samples, AV_SAMPLE_FMT_S16, 0);
+//                swr_convert(swrContext, &outputData, filteredFrame->nb_samples,
+//                            (const uint8_t **)filteredFrame->data, filteredFrame->nb_samples);
+
+                //音频时域转化为频域
+
+//                audioDevice->write((const char *)outputData, outputSize);
+//                if(mSaveFlag){
+//                    saveAudioPCMFile.write((const char *)outputData,outputSize);
+//                }
+//                av_freep(&outputData);  // 释放转换后的数据
+                // 等待缓冲区有足够空间再写入，防止杂音
+                while (audioOutput->bytesFree() < outputSize && state != Stopped) {
+                    QThread::msleep(2);
+                }
+
+                // 写入音频数据
+                qint64 written = audioDevice->write((const char *)outputData, outputSize);
+                if (written != outputSize) {
+                    qWarning() << "Audio write mismatch:" << written << "/" << outputSize;
+                }
+
+                // 可选：写入PCM文件
+                if (mSaveFlag) {
+                    saveAudioPCMFile.write((const char *)outputData, outputSize);
+                }
+
+                av_freep(&outputData);
 
                 // 检查并发射位置改变信号
                 int currentPosition = getCurrentPosition();
@@ -277,9 +469,10 @@ void AudioPlayer::run() {
             emit errorOccurred(str);
             break;
         }
+
         av_packet_unref(packet);  // 释放packet数据
     }
-
+    av_frame_unref(filteredFrame);
     cleanupFFmpeg();
     emit playbackFinished();  // 发射播放完成信号
 }
@@ -331,3 +524,8 @@ QStringList AudioPlayer::getAvailableAudioDevices() {
     return deviceNames;
 }
 
+void AudioPlayer::setEQData(const std::vector<double>& frequencies, const std::vector<double>& gains)
+{
+    mFrequencies = frequencies;
+    mGains = gains;
+}

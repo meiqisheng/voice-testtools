@@ -6,6 +6,15 @@
 #include <QProcess>
 #include <QTimer>
 #include <QTextEdit>
+#include <QComboBox>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QJsonArray>
+#include <QJsonParseError>
+#include <QLayout>
+#include <QSettings>
+
 
 #include "audioplayer.h"
 
@@ -21,6 +30,9 @@ public:
     Widget(QWidget *parent = nullptr);
     ~Widget();
     void adbProcessExecude(QString &adbPath, QStringList &arguments); //执行adb 命令
+    void loadEQPresets(QComboBox* EQcomboBox, const QString& filePath);
+    void loadAudioPathFromJson();
+    void saveAudioPathToJson(const QString& filePath);
 public slots:
     void on_AudioFileBtn_Clicked();
     void on_WakeTestBtn_Clicked();
@@ -51,6 +63,16 @@ public slots:
     void on_WakeIntervalTimeEdit_EditingFinished();
     void on_CharTestIntervalTimeEdit_EditingFinished();
     void on_VolumeSlider_ValueChanged(int value);
+signals:
+    void saveFlagChanged(bool flag);
+private slots:
+    void on_AudioFileBulkBtn_clicked();
+    void on_EQcomboBox_currentTextChanged(int index);
+    void on_LoadJSON_clicked(QComboBox* EQcomboBox, const QString filePath);
+    void on_ClearList_clicked();
+
+    void on_pushButton_clicked();
+
 private:
     bool addAudiofileToList(QString fileName);  //成功返回true,失败返回false，防止名字重复
     void analysisWakeTestResult();
@@ -67,6 +89,8 @@ private:
     qint64 mWakePlayCycleCount = 0;   //循环播放唤醒词次数
     qint64 mWakePlaySum = 100;        //要求播放的次数
     qint64 mWakeDevCount = 0;         //唤醒设备的次数
+    qint64 mHWakeDevCount = 0;         //唤醒设备的次数
+    qint64 mLWakeDevCount = 0;         //唤醒设备的次数
     float mWakeupRate = 0.0;          //唤醒率计算
     qint64 mCharTestInterValTIme = 1000;
     qint64 mCharPlayCycleCount = 0;
@@ -97,6 +121,11 @@ private:
     QTimer * mTimer;
     QTimer * mClickTimer;
     QTimer * mRealTimer;
+    bool flag;
+    QJsonObject rootObj;
+    std::vector<double> mFrequencies;
+    std::vector<double> mGains;
+    QSettings settings;
 
 };
 #endif // WIDGET_H

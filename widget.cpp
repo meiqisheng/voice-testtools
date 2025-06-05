@@ -5,16 +5,23 @@
 #include <QMessageBox>
 #include <QDateTime>
 #include <QBuffer>
+#include <QFile>
+#pragma execution_character_set("utf-8")
 
-#define APP_VERSION "1.0.15"
+
+#define APP_VERSION "1.0.24"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
     , mPlayer(new AudioPlayer(this))
     , mCharacterTestPlayer(new AudioPlayer(this))
+    , settings("sunnyverse", "VoiceTestTools")
 {
     ui->setupUi(this);
+    QString eqJsonPath = QCoreApplication::applicationDirPath() + "/json/EQ.json";
+    loadEQPresets(ui->EQcomboBox, eqJsonPath); // 你可以换成实际路径
+    loadAudioPathFromJson();
     this->setWindowFlags(Qt::Widget | Qt::MSWindowsFixedSizeDialogHint);
     QString title = QString("VoiceTestTools - Version %1, build:%2-%3").arg(APP_VERSION).arg(__DATE__).arg(__TIME__);
     this->setWindowTitle(title);
@@ -43,6 +50,18 @@ Widget::Widget(QWidget *parent)
     ui->CharTestIntervalTimeEdit->setText(str);
 
     currentIndex = 0; //audio file index init
+    // widget.cpp
+    connect(ui->SaveBox, &QCheckBox::toggled, this, [=](bool checked) {
+        flag = checked;
+        emit saveFlagChanged(flag);
+        qDebug() << "widget, flag = " << flag;
+    });
+    connect(ui->EQcomboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &Widget::on_EQcomboBox_currentTextChanged);
+    connect(this, &Widget::saveFlagChanged, mPlayer, &AudioPlayer::onSaveFlagChanged);
+    connect(ui->LoadJSON, &QAbstractButton::clicked, this, [=]() {
+        this->on_LoadJSON_clicked(ui->EQcomboBox, eqJsonPath);
+    });
     connect(ui->AudioFileBtn,&QPushButton::clicked,this, &Widget::on_AudioFileBtn_Clicked);
     connect(ui->WakeTestBtn,&QPushButton::clicked,this, &Widget::on_WakeTestBtn_Clicked);
     connect(ui->WakeTestPauseBtn,&QPushButton::clicked,this, &Widget::on_WakeTestPauseBtn_Clicked);
@@ -66,22 +85,22 @@ Widget::Widget(QWidget *parent)
     connect(ui->CharTestIntervalTimeEdit,&QLineEdit::editingFinished,this,&Widget::on_CharTestIntervalTimeEdit_EditingFinished);
 
     // 唤醒测试播放器信号连接
-     connect(mPlayer, &AudioPlayer::playbackFinished, this, &Widget::AudioPlayFinished);
-     connect(mPlayer, &AudioPlayer::positionChanged, this, &Widget::AudioPlayPositionChanged);
-     connect(mPlayer, &AudioPlayer::errorOccurred, this, &Widget::AudioPlayErrorOccurred);
+    connect(mPlayer, &AudioPlayer::playbackFinished, this, &Widget::AudioPlayFinished);
+    connect(mPlayer, &AudioPlayer::positionChanged, this, &Widget::AudioPlayPositionChanged);
+    connect(mPlayer, &AudioPlayer::errorOccurred, this, &Widget::AudioPlayErrorOccurred);
    //字准测试播放器信号连接
-     connect(mCharacterTestPlayer, &AudioPlayer::playbackFinished, this, &Widget::AudioPlayFinished);
-     connect(mCharacterTestPlayer, &AudioPlayer::positionChanged, this, &Widget::AudioPlayPositionChanged);
-     connect(mCharacterTestPlayer, &AudioPlayer::errorOccurred, this, &Widget::AudioPlayErrorOccurred);
+    connect(mCharacterTestPlayer, &AudioPlayer::playbackFinished, this, &Widget::AudioPlayFinished);
+    connect(mCharacterTestPlayer, &AudioPlayer::positionChanged, this, &Widget::AudioPlayPositionChanged);
+    connect(mCharacterTestPlayer, &AudioPlayer::errorOccurred, this, &Widget::AudioPlayErrorOccurred);
 
     connect(ui->listWidget, &QListWidget::itemClicked, this, &Widget::onItemClicked);
     connect(ui->listWidget, &QListWidget::itemDoubleClicked, this, &Widget::onItemDoubleClicked);
 
     mAdbProcess = new QProcess(this);
     // 处理进程的标准输出
-     connect(mAdbProcess, &QProcess::readyReadStandardOutput, this, &Widget::adbCmdOutput);
+    connect(mAdbProcess, &QProcess::readyReadStandardOutput, this, &Widget::adbCmdOutput);
     // 处理进程的标准错误
-     connect(mAdbProcess, &QProcess::readyReadStandardError, this, &Widget::adbCmdErrorOutput);
+    connect(mAdbProcess, &QProcess::readyReadStandardError, this, &Widget::adbCmdErrorOutput);
     // 进程完成后自动清理
     connect(mAdbProcess, SIGNAL(finished(int, QProcess::ExitStatus)),
             this, SLOT(adbCmdFinished(int, QProcess::ExitStatus)));
@@ -97,8 +116,8 @@ Widget::Widget(QWidget *parent)
     ui->stackedWidget->setCurrentIndex(0);
     ptrPlayer = mPlayer; //默认设置为唤醒测试播放器
     mRealTimer = new QTimer(this);
-   connect(mRealTimer,&QTimer::timeout, this, &Widget::on_UpdateTime_do);
-   //mRealTimer->start(17);
+    connect(mRealTimer,&QTimer::timeout, this, &Widget::on_UpdateTime_do);
+    //mRealTimer->start(17);
 }
 
 Widget::~Widget()
@@ -122,7 +141,7 @@ Widget::~Widget()
 
 void Widget::on_VolumeSlider_ValueChanged(int value)
 {
-     qreal volumeVal = (value / 1000.00 * 5);
+     qreal volumeVal = (value / 100.0);
      qDebug() << volumeVal;
      if (ptrPlayer != nullptr){
         ptrPlayer->setVolume(volumeVal);
@@ -141,21 +160,33 @@ void Widget::adbProcessExecude(QString &adbPath, QStringList &arguments)
 void Widget::analysisWakeTestResult()
 {
     QFile file("./log/wake.log");
+    //qDebug() << "Current working dir:" << QDir::currentPath();
     // 检查文件是否可以打开
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "Failed to open file:" << "./log/wake.log";
         return;
     }
     mWakeDevCount = 0;
+    mHWakeDevCount = 0;
+    mLWakeDevCount = 0;
+
     QTextStream in(&file);
     QString line = "";
     // 逐行读取文件内容
     while (!in.atEnd()) {
      line = in.readLine();  // 读取一行
-        ++mWakeDevCount;    // 行数计数
+     ++mWakeDevCount;    // 行数计数
+     // 判断每行末尾是否是 H 或 L
+     if (line.endsWith('H')) {
+         ++mHWakeDevCount;
+     } else if (line.endsWith('L')) {
+         ++mLWakeDevCount;
+     }
 
     }
     ui->WakeFinishTimeEdit->setText(line.mid(5));
+    ui->HighWakeDevCountEdit->setText(QString::number(mHWakeDevCount));
+    ui->LowWakeDevCountEdit->setText(QString::number(mLWakeDevCount));
     file.close();  // 关闭文件
 
     QString str = QString::asprintf("%llu",mWakeDevCount);
@@ -191,7 +222,13 @@ void Widget::adbCmdErrorOutput()
     QByteArray error = mAdbProcess->readAllStandardError();
     qDebug() << "Error:" << error;
     QString str = "Error:" + error;
-    ui->textEdit->append(str);
+    //ui->textEdit->append(str);
+    // 判断是否是 adb 的正常提示（不是错误）
+    if (str.contains("file pulled") || str.contains("skipped") || str.contains("bytes")) {
+        ui->textEdit->append("<font color='blue'>提示信息：" + str + "</font>");
+    } else {
+        ui->textEdit->append("<font color='red'>错误信息：" + str + "</font>");
+    }
 }
 void Widget::adbCmdFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
@@ -226,7 +263,7 @@ bool Widget::addAudiofileToList(QString fileName)
                 ui->listWidget->addItem(fileName);
                 return true;
             } else {
-                qDebug("项目已存在，不重复添加");
+                qDebug("music is existed, cannot add the item");
                 return false;
             }
 }
@@ -297,15 +334,19 @@ void Widget::on_AudioFileBtn_Clicked()
 {
    qDebug() << "into on_AudioFileBtn_Clicked";
    // 打开文件选择对话框
+   QString lastDir = settings.value("lastAudioDir", QCoreApplication::applicationDirPath()).toString();
    strAudioFileName = QFileDialog::getOpenFileName(
        nullptr,
        "选择音频文件",              // 对话框标题
-       "/",                     // 初始目录 (根目录)
-       "音频文件 (*.mp3);;所有文件 (*)"  // 文件过滤器
+       lastDir,                     // 初始目录 (根目录)
+       "音频文件 (*.mp3 *.wav);;所有文件 (*)"  // 文件过滤器
    );
    // 如果选择了文件，输出文件路径
    if (!strAudioFileName.isEmpty()) {
-     //  qDebug() << "选择的文件:" << strAudioFileName;
+       saveAudioPathToJson(strAudioFileName);
+       QFileInfo fileInfo(strAudioFileName);
+       settings.setValue("lastAudioDir", fileInfo.absolutePath());
+       qDebug() << "settings dir:" << fileInfo.absolutePath();
        ui->AudioFilelNameEdit->setText(strAudioFileName);
        QString fileName = strAudioFileName.split("/").last();
       // ui->listWidget->addItem(fileName);
@@ -320,7 +361,7 @@ void Widget::on_AudioFileBtn_Clicked()
             strAudioFileName = audioFiles.at(currentIndex);
        }
    } else {
-       qDebug() << "未选择任何文件";
+       qDebug() << "no select";
    }
 }
 
@@ -371,6 +412,7 @@ void Widget::on_WakeTestStopBtn_Clicked()
 
 void Widget::on_GetWakeTestResultBtn_Clicked()
 {
+    //analysisWakeTestResult();
     //获取唤醒测试的结果统计
     QString adbPath = "adb";
     QStringList cmdList;
@@ -392,6 +434,7 @@ void Widget::on_SetPlaySumBtn_Clicked()
 {
     QString str = ui->SetPlaySumEdit->text();
     mWakePlaySum = str.toInt(); //设置播放次数
+    ui->textEdit->append("<font color='green'>[完成] 已设置播放总次数为:" + str + "次。</font>");
 }
 
 void Widget::on_ClearTextEditBtn_Clicked()
@@ -426,7 +469,7 @@ void Widget::on_ClearDevWakeRecordBtn_Clicked()
 void Widget::on_DisplayDateTimeBtn_Clicked()
 {
      if (ui->DisplayDateTimeBtn->text() == "显示时间"){
-         mRealTimer->start(17);
+         mRealTimer->start(40);
          ui->DisplayDateTimeBtn->setText("停止显示");
      }else {
          mRealTimer->stop();
@@ -510,6 +553,7 @@ void Widget::on_TimerTimeout_do()
         on_WakeTestBtn_Clicked();
     }else {}
 }
+
 void Widget::on_WakeIntervalTimeEdit_EditingFinished()
 {
     QString data = ui->WakeIntervalTimeEdit->text();
@@ -570,5 +614,340 @@ void Widget::AudioPlayErrorOccurred(const QString &error)
     qDebug() << "Error: " << error;
 }
 
+void Widget::on_AudioFileBulkBtn_clicked()
+{
+    qDebug().noquote() << QStringLiteral("into on_AudioFileBulkBtn_clicked");
+    QString lastDir = settings.value("lastAudioDir", QCoreApplication::applicationDirPath()).toString();
+    QStringList files = QFileDialog::getOpenFileNames(
+        this,
+        QStringLiteral("选择多个音频文件"),
+        lastDir,
+        "音频文件 (*.mp3 *.wav);;所有文件 (*)"
+    );
+    if (files.isEmpty()) {
+        qDebug().noquote() << QStringLiteral("no select");
+        return;
+    }
 
+    // 保存第一个音频文件所在目录
+    QFileInfo firstFileInfo(files.first());
+    QString dirPath = firstFileInfo.absolutePath();
+
+    // 写入 JSON 和 settings
+    saveAudioPathToJson(files.first());
+    settings.setValue("lastAudioDir", dirPath);
+
+    for (const QString &filePath : files) {
+        QString fileName = QFileInfo(filePath).fileName();
+
+        // 加入 listWidget 并避免重复
+        if (addAudiofileToList(fileName)) {
+            audioFiles.push_back(filePath);
+        }
+    }
+
+    // 自动选中第一个添加的文件
+    if (currentIndex < 0 && !audioFiles.empty()) {
+        currentIndex = 0;
+        ui->listWidget->setCurrentRow(currentIndex);
+        strAudioFileName = audioFiles.at(currentIndex);
+    } else {
+        // 保持当前索引有效
+        currentIndex = qMin(currentIndex, ui->listWidget->count() - 1);
+        ui->listWidget->setCurrentRow(currentIndex);
+        strAudioFileName = audioFiles.at(currentIndex);
+    }
+    ui->AudioFilelNameEdit->setText(strAudioFileName);
+}
+
+void Widget::loadEQPresets(QComboBox* EQcomboBox, const QString& filePath)
+{
+    QFile file(filePath);
+    qDebug() << "current folder:" << QDir::currentPath();
+    QString currentfolder = "current folder:" + QDir::currentPath();
+    ui->textEdit->append(currentfolder);
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "Cannot open EQ json file:" << filePath;
+        ui->textEdit->append("<font color='red'>[错误] 未找到EQ预设文件，请确认文件路径是否正确。</font>");
+        mFrequencies.clear();
+        mGains.clear();
+        return;
+    }
+
+    QByteArray jsonData = file.readAll();
+    file.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "解析 EQ 预设文件出错:" << parseError.errorString();
+        ui->textEdit->append("<font color='red'>[错误] EQ预设文件格式错误，无法解析。</font>");
+        mFrequencies.clear();
+        mGains.clear();
+        return;
+    }
+
+    if (!doc.isObject()) {
+        qWarning() << "EQ 预设 JSON 文件格式错误，根不是对象";
+        ui->textEdit->append("<font color='red'>[错误] EQ预设文件格式错误，根元素应为对象。</font>");
+        mFrequencies.clear();
+        mGains.clear();
+        return;
+    }
+
+    rootObj = doc.object();
+    for (const QString& key : rootObj.keys()) {
+        EQcomboBox->addItem(key);
+    }
+
+    // 默认选中第一个预设
+    if (EQcomboBox->count() > 0) {
+        QString defaultPreset = EQcomboBox->itemText(0);
+        EQcomboBox->setCurrentIndex(0);
+
+        QJsonObject presetObj = rootObj.value(defaultPreset).toObject();
+        QJsonArray freqArray = presetObj["frequencies"].toArray();
+        QJsonArray gainArray = presetObj["gains"].toArray();
+
+        mFrequencies.clear();
+        mGains.clear();
+
+        QString html = QString("默认预设: <span style='color:red;'>%1</span><br>").arg(defaultPreset);
+        html += "<table border='1' cellspacing='0' cellpadding='2'><tr><th>频率 (Hz)</th><th>增益 (dB)</th></tr>";
+
+        for (int i = 0; i < freqArray.size(); ++i) {
+            double freq = freqArray[i].toDouble();
+            double gain = gainArray[i].toDouble();
+            mFrequencies.push_back(freq);
+            mGains.push_back(gain);
+            html += QString("<tr><td>%1</td><td>%2</td></tr>").arg(freq).arg(gain, 0, 'f', 2);
+        }
+
+        html += "</table>";
+        ui->textEdit->append(html);
+
+        if (mPlayer)
+            mPlayer->setEQData(mFrequencies, mGains);
+    }
+}
+
+void Widget::on_EQcomboBox_currentTextChanged(int index)
+{
+    if (index < 0 || index >= ui->EQcomboBox->count())
+        return;
+
+    QString presetName = ui->EQcomboBox->itemText(index);
+    if (!rootObj.contains(presetName))
+        return;
+
+    QJsonObject presetObj = rootObj[presetName].toObject();
+    QJsonArray freqArray = presetObj["frequencies"].toArray();
+    QJsonArray gainArray = presetObj["gains"].toArray();
+
+    mFrequencies.clear();
+    mGains.clear();
+
+    for (const auto& v : freqArray)
+        mFrequencies.push_back(v.toDouble());
+
+    for (const auto& v : gainArray)
+        mGains.push_back(v.toDouble());
+
+    QString html = QString("当前预设: <span style='color:red;'>%1</span><br>").arg(presetName);
+    html += "<table border='1' cellspacing='0' cellpadding='2'><tr><th>频率 (Hz)</th><th>增益 (dB)</th></tr>";
+
+    for (int i = 0; i < freqArray.size(); ++i) {
+        double freq = freqArray[i].toDouble();
+        double gain = gainArray[i].toDouble();
+        html += QString("<tr><td>%1</td><td>%2</td></tr>").arg(freq).arg(gain, 0, 'f', 2);
+    }
+
+    html += "</table>";
+    ui->textEdit->append(html);
+    // ✅ 将 EQ 数据传给 AudioPlayer
+    if (mPlayer)
+        mPlayer->setEQData(mFrequencies, mGains);
+}
+
+
+void Widget::on_LoadJSON_clicked(QComboBox* EQcomboBox, const QString filePath)
+{
+    QFile file(filePath);
+    qDebug() << "current folder:" << QDir::currentPath();
+    QString currentfolder = "current folder:" + QDir::currentPath();
+    ui->textEdit->append(currentfolder);
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "Cannot open EQ json file:" << filePath;
+        ui->textEdit->append("<font color='red'>[错误] 未找到EQ预设文件，请确认文件路径是否正确。</font>");
+        mFrequencies.clear();
+        mGains.clear();
+        return;
+    }
+
+    QByteArray jsonData = file.readAll();
+    file.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "解析 EQ 预设文件出错:" << parseError.errorString();
+        ui->textEdit->append("<font color='red'>[错误] EQ预设文件格式错误，无法解析。</font>");
+        mFrequencies.clear();
+        mGains.clear();
+        return;
+    }
+
+    if (!doc.isObject()) {
+        qWarning() << "EQ 预设 JSON 文件格式错误，根不是对象";
+        ui->textEdit->append("<font color='red'>[错误] EQ预设文件格式错误，根元素应为对象。</font>");
+        mFrequencies.clear();
+        mGains.clear();
+        return;
+    }
+
+    rootObj = doc.object();
+    EQcomboBox->clear();
+    for (const QString& key : rootObj.keys()) {
+        EQcomboBox->addItem(key);
+    }
+
+    // 默认选中第一个预设
+    if (EQcomboBox->count() > 0) {
+        QString defaultPreset = EQcomboBox->itemText(0);
+        EQcomboBox->setCurrentIndex(0);
+
+        QJsonObject presetObj = rootObj.value(defaultPreset).toObject();
+        QJsonArray freqArray = presetObj["frequencies"].toArray();
+        QJsonArray gainArray = presetObj["gains"].toArray();
+
+        mFrequencies.clear();
+        mGains.clear();
+
+        QString html = QString("默认预设: <span style='color:red;'>%1</span><br>").arg(defaultPreset);
+        html += "<table border='1' cellspacing='0' cellpadding='2'><tr><th>频率 (Hz)</th><th>增益 (dB)</th></tr>";
+
+        for (int i = 0; i < freqArray.size(); ++i) {
+            double freq = freqArray[i].toDouble();
+            double gain = gainArray[i].toDouble();
+            mFrequencies.push_back(freq);
+            mGains.push_back(gain);
+            html += QString("<tr><td>%1</td><td>%2</td></tr>").arg(freq).arg(gain, 0, 'f', 2);
+        }
+
+        html += "</table>";
+        ui->textEdit->append(html);
+
+        if (mPlayer)
+            mPlayer->setEQData(mFrequencies, mGains);
+    }
+}
+
+void Widget::on_ClearList_clicked()
+{
+    qDebug().noquote() << QStringLiteral("Clear the music playlist");
+
+    // 清空 listWidget
+    ui->listWidget->clear();
+
+    // 清空保存路径的容器
+    audioFiles.clear();
+
+    // 重置当前索引和文件名
+    currentIndex = -1;
+    strAudioFileName.clear();
+
+    // 清空文件名显示
+    ui->AudioFilelNameEdit->clear();
+}
+
+void Widget::loadAudioPathFromJson()
+{
+    QString configPath = QCoreApplication::applicationDirPath() + "/json/audio_config.json";
+    QFile configFile(configPath);
+
+    if (!configFile.exists()) {
+        qDebug() << "JSON config not found.";
+        ui->textEdit->append("<font color='red'>[错误] 未找到JSON config，请确认文件路径是否正确。</font>");
+        settings.setValue("lastAudioDir", QCoreApplication::applicationDirPath());
+        return;
+    }
+
+    if (!configFile.open(QIODevice::ReadOnly)) {
+        qWarning() << "Unable to open JSON config file.";
+        ui->textEdit->append("<font color='red'>[错误] 无法打开JSON config，请确认文件是否可读。</font>");
+        settings.setValue("lastAudioDir", QCoreApplication::applicationDirPath());
+        return;
+    }
+
+    QByteArray data = configFile.readAll();
+    configFile.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        qWarning() << "JSON parse error:" << parseError.errorString();
+        ui->textEdit->append("<font color='red'>[错误] 无法解析JSON config，请确认文件格式是否正确。</font>");
+        settings.setValue("lastAudioDir", QCoreApplication::applicationDirPath());
+        return;
+    }
+
+    QString path = doc.object().value("last_audio_dir").toString();
+    if (!QDir(path).exists()) {
+        path = QCoreApplication::applicationDirPath();
+    }
+
+    settings.setValue("lastAudioDir", path);
+}
+
+void Widget::saveAudioPathToJson(const QString& filePath)
+{
+    QFileInfo fileInfo(filePath);
+    QString dirPath = fileInfo.absolutePath();
+    if (!QDir(dirPath).exists()) {
+        dirPath = QCoreApplication::applicationDirPath();
+    }
+
+    QJsonObject jsonObj;
+    jsonObj["last_audio_dir"] = dirPath;
+
+    QJsonDocument doc(jsonObj);
+
+    QString jsonDirPath = QCoreApplication::applicationDirPath() + "/json";
+    QDir jsonDir(jsonDirPath);
+    if (!jsonDir.exists()) {
+        if (!jsonDir.mkpath(".")) {
+            qCritical() << "can not create JSON dir:" << jsonDirPath;
+            return;
+        }
+    }
+
+    QString configPath = jsonDirPath + "/audio_config.json";
+    QFile configFile(configPath);
+    if (!configFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        qCritical() << "error open JSON file write:" << configPath << "error:" << configFile.errorString();
+        return;
+    }
+
+    qint64 written = configFile.write(doc.toJson(QJsonDocument::Indented));
+    configFile.close();
+
+    if (written <= 0) {
+        qCritical() << "fail save JSON:" << configPath;
+    } else {
+        qDebug() << "successful save JSON:" << dirPath;
+    }
+}
+
+void Widget::on_pushButton_clicked()
+{
+    ui->AudioDevComboBox->clear();
+    QStringList audioOutputDevices = AudioPlayer::getAvailableAudioDevices();
+    if (!audioOutputDevices.isEmpty()){
+        ui->AudioDevComboBox->addItems(audioOutputDevices);
+        ui->AudioDevComboBox->setCurrentIndex(0);
+        strAudioOutputDevice = ui->AudioDevComboBox->currentText();
+    }
+}
 
