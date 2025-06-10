@@ -957,30 +957,42 @@ void Widget::on_pushButton_3_clicked()
     QString line;
     mWakeDevCount = 0;
 
-    QMap<QString, int> wakeWordCountMap; // 唤醒词计数
+    // 使用 <唤醒词, 通道> 作为 key，统计次数
+    QMap<QString, int> wakeWordCountMap;
 
     while (!in.atEnd()) {
-        line = in.readLine();
-        ++mWakeDevCount;
+        line = in.readLine().trimmed();
+        if (line.isEmpty()) continue;
 
-        // 拆分并提取唤醒词
         QStringList parts = line.split(' ', QString::SkipEmptyParts);
-        if (parts.size() >= 4) {
-            QString word = parts[3];
-            // 判断是否是单个字母（英文）
-            if (word.size() == 1 && word.at(0).isLetter()) {
-                wakeWordCountMap[word]++;
-            }
+        if (parts.size() >= 5 && parts[0] == "wake") {
+            QString channel = parts[3];     // 通道，如 N
+            QString word = parts[4];        // 唤醒词，如 小溪小溪
+
+            QString key = QString("%1-%2").arg(word).arg(channel);
+            wakeWordCountMap[key]++;
+            mWakeDevCount++;
         }
     }
 
     file.close();
 
-    // 显示统计结果
+    // 颜色列表（支持 10 个不同颜色，超出会重复使用）
+    QStringList colorList = {
+        "red", "blue", "green", "orange", "purple",
+        "teal", "brown", "magenta", "navy", "darkcyan"
+    };
+
     QStringList summaryList;
-    for (auto it = wakeWordCountMap.constBegin(); it != wakeWordCountMap.constEnd(); ++it) {
-        summaryList << QString("唤醒词-%1-%2").arg(it.key()).arg(it.value());
+    int colorIndex = 0;
+    for (auto it = wakeWordCountMap.constBegin(); it != wakeWordCountMap.constEnd(); ++it, ++colorIndex) {
+        QString color = colorList[colorIndex % colorList.size()];
+        QString coloredItem = QString("<span style='color:%1'>%2-%3</span>")
+                              .arg(color)
+                              .arg(it.key())
+                              .arg(it.value());
+        summaryList << coloredItem;
     }
-    ui->LowWakeDevCountEdit->setText(summaryList.join("；"));
+    ui->textEdit->setText(summaryList.join("；"));
 }
 
