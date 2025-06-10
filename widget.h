@@ -73,6 +73,8 @@ private slots:
 
     void on_pushButton_clicked();
 
+    void on_pushButton_3_clicked();
+
 private:
     bool addAudiofileToList(QString fileName);  //成功返回true,失败返回false，防止名字重复
     void analysisWakeTestResult();

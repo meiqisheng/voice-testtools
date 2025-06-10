@@ -6,10 +6,11 @@
 #include <QDateTime>
 #include <QBuffer>
 #include <QFile>
+#include <QStringList>
 #pragma execution_character_set("utf-8")
 
 
-#define APP_VERSION "1.0.24"
+#define APP_VERSION "1.0.30"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -62,6 +63,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->LoadJSON, &QAbstractButton::clicked, this, [=]() {
         this->on_LoadJSON_clicked(ui->EQcomboBox, eqJsonPath);
     });
+    connect(ui->WakeCount,&QPushButton::clicked,this, &Widget::on_pushButton_3_clicked);
     connect(ui->AudioFileBtn,&QPushButton::clicked,this, &Widget::on_AudioFileBtn_Clicked);
     connect(ui->WakeTestBtn,&QPushButton::clicked,this, &Widget::on_WakeTestBtn_Clicked);
     connect(ui->WakeTestPauseBtn,&QPushButton::clicked,this, &Widget::on_WakeTestPauseBtn_Clicked);
@@ -167,8 +169,6 @@ void Widget::analysisWakeTestResult()
         return;
     }
     mWakeDevCount = 0;
-    mHWakeDevCount = 0;
-    mLWakeDevCount = 0;
 
     QTextStream in(&file);
     QString line = "";
@@ -176,17 +176,8 @@ void Widget::analysisWakeTestResult()
     while (!in.atEnd()) {
      line = in.readLine();  // 读取一行
      ++mWakeDevCount;    // 行数计数
-     // 判断每行末尾是否是 H 或 L
-     if (line.endsWith('H')) {
-         ++mHWakeDevCount;
-     } else if (line.endsWith('L')) {
-         ++mLWakeDevCount;
-     }
-
     }
     ui->WakeFinishTimeEdit->setText(line.mid(5));
-    ui->HighWakeDevCountEdit->setText(QString::number(mHWakeDevCount));
-    ui->LowWakeDevCountEdit->setText(QString::number(mLWakeDevCount));
     file.close();  // 关闭文件
 
     QString str = QString::asprintf("%llu",mWakeDevCount);
@@ -949,5 +940,47 @@ void Widget::on_pushButton_clicked()
         ui->AudioDevComboBox->setCurrentIndex(0);
         strAudioOutputDevice = ui->AudioDevComboBox->currentText();
     }
+}
+
+
+void Widget::on_pushButton_3_clicked()
+{
+    QString logPath = QCoreApplication::applicationDirPath() + "/log/wake.log";
+    QFile file(logPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open file:" << logPath;
+        return;
+    }
+
+    QTextStream in(&file);
+    in.setCodec("UTF-8");  // 强制使用 UTF-8 编码
+    QString line;
+    mWakeDevCount = 0;
+
+    QMap<QString, int> wakeWordCountMap; // 唤醒词计数
+
+    while (!in.atEnd()) {
+        line = in.readLine();
+        ++mWakeDevCount;
+
+        // 拆分并提取唤醒词
+        QStringList parts = line.split(' ', QString::SkipEmptyParts);
+        if (parts.size() >= 4) {
+            QString word = parts[3];
+            // 判断是否是单个字母（英文）
+            if (word.size() == 1 && word.at(0).isLetter()) {
+                wakeWordCountMap[word]++;
+            }
+        }
+    }
+
+    file.close();
+
+    // 显示统计结果
+    QStringList summaryList;
+    for (auto it = wakeWordCountMap.constBegin(); it != wakeWordCountMap.constEnd(); ++it) {
+        summaryList << QString("唤醒词-%1-%2").arg(it.key()).arg(it.value());
+    }
+    ui->LowWakeDevCountEdit->setText(summaryList.join("；"));
 }
 
