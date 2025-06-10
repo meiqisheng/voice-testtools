@@ -200,7 +200,7 @@
       <property name="geometry">
        <rect>
         <x>150</x>
-        <y>360</y>
+        <y>310</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -210,7 +210,7 @@
       <property name="geometry">
        <rect>
         <x>50</x>
-        <y>110</y>
+        <y>60</y>
         <width>91</width>
         <height>41</height>
        </rect>
@@ -223,7 +223,7 @@
       <property name="geometry">
        <rect>
         <x>150</x>
-        <y>110</y>
+        <y>60</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -243,7 +243,7 @@
       <property name="geometry">
        <rect>
         <x>50</x>
-        <y>360</y>
+        <y>310</y>
         <width>91</width>
         <height>41</height>
        </rect>
@@ -256,7 +256,7 @@
       <property name="geometry">
        <rect>
         <x>45</x>
-        <y>160</y>
+        <y>110</y>
         <width>71</width>
         <height>41</height>
        </rect>
@@ -282,7 +282,7 @@
       <property name="geometry">
        <rect>
         <x>150</x>
-        <y>160</y>
+        <y>110</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -292,7 +292,7 @@
       <property name="geometry">
        <rect>
         <x>490</x>
-        <y>260</y>
+        <y>210</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -305,7 +305,7 @@
       <property name="geometry">
        <rect>
         <x>25</x>
-        <y>210</y>
+        <y>160</y>
         <width>111</width>
         <height>41</height>
        </rect>
@@ -318,7 +318,7 @@
       <property name="geometry">
        <rect>
         <x>150</x>
-        <y>210</y>
+        <y>160</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -328,7 +328,7 @@
       <property name="geometry">
        <rect>
         <x>25</x>
-        <y>260</y>
+        <y>210</y>
         <width>111</width>
         <height>41</height>
        </rect>
@@ -341,7 +341,7 @@
       <property name="geometry">
        <rect>
         <x>150</x>
-        <y>260</y>
+        <y>210</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -351,7 +351,7 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>310</y>
+        <y>260</y>
         <width>121</width>
         <height>41</height>
        </rect>
@@ -364,7 +364,7 @@
       <property name="geometry">
        <rect>
         <x>150</x>
-        <y>310</y>
+        <y>260</y>
         <width>311</width>
         <height>41</height>
        </rect>
@@ -387,7 +387,7 @@
       <property name="geometry">
        <rect>
         <x>490</x>
-        <y>360</y>
+        <y>310</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -410,7 +410,7 @@
       <property name="geometry">
        <rect>
         <x>640</x>
-        <y>360</y>
+        <y>310</y>
         <width>211</width>
         <height>41</height>
        </rect>
@@ -420,7 +420,7 @@
       <property name="geometry">
        <rect>
         <x>640</x>
-        <y>260</y>
+        <y>210</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -433,7 +433,7 @@
       <property name="geometry">
        <rect>
         <x>490</x>
-        <y>110</y>
+        <y>60</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -446,7 +446,7 @@
       <property name="geometry">
        <rect>
         <x>640</x>
-        <y>210</y>
+        <y>160</y>
         <width>211</width>
         <height>41</height>
        </rect>
@@ -465,7 +465,7 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
       <property name="geometry">
        <rect>
         <x>640</x>
-        <y>310</y>
+        <y>260</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -475,7 +475,7 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
       <property name="geometry">
        <rect>
         <x>530</x>
-        <y>310</y>
+        <y>260</y>
         <width>101</width>
         <height>41</height>
        </rect>
@@ -488,7 +488,7 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
       <property name="geometry">
        <rect>
         <x>490</x>
-        <y>210</y>
+        <y>160</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -501,7 +501,7 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
       <property name="geometry">
        <rect>
         <x>490</x>
-        <y>160</y>
+        <y>110</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -510,20 +510,10 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
        <string>加载JSON文件</string>
       </property>
      </widget>
-     <widget class="QLineEdit" name="LowWakeDevCountEdit">
-      <property name="geometry">
-       <rect>
-        <x>150</x>
-        <y>60</y>
-        <width>701</width>
-        <height>41</height>
-       </rect>
-      </property>
-     </widget>
      <widget class="QPushButton" name="WakeCount">
       <property name="geometry">
        <rect>
-        <x>0</x>
+        <x>640</x>
         <y>60</y>
         <width>141</width>
         <height>41</height>
@@ -623,9 +613,9 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>570</y>
+      <y>520</y>
       <width>931</width>
-      <height>321</height>
+      <height>371</height>
      </rect>
     </property>
    </widget>
@@ -633,7 +623,7 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>520</y>
+      <y>470</y>
       <width>141</width>
       <height>41</height>
      </rect>
@@ -646,7 +636,7 @@ font: 75 12pt &quot;Agency FB&quot;;</string>
     <property name="geometry">
      <rect>
       <x>160</x>
-      <y>520</y>
+      <y>470</y>
       <width>141</width>
       <height>41</height>
      </rect>
