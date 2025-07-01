@@ -10,7 +10,7 @@
 #pragma execution_character_set("utf-8")
 
 
-#define APP_VERSION "1.0.30"
+#define APP_VERSION "1.0.32"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -171,13 +171,18 @@ void Widget::analysisWakeTestResult()
     mWakeDevCount = 0;
 
     QTextStream in(&file);
+    in.setCodec("UTF-8");  // 强制使用 UTF-8 编码
     QString line = "";
     // 逐行读取文件内容
     while (!in.atEnd()) {
      line = in.readLine();  // 读取一行
      ++mWakeDevCount;    // 行数计数
     }
-    ui->WakeFinishTimeEdit->setText(line.mid(5));
+    QStringList parts = line.split(" ");  // 按空格分隔
+    if (parts.size() >= 3) {
+        QString timeString = parts[1] + " " + parts[2];  // 日期 + 时间
+        ui->WakeFinishTimeEdit->setText(timeString);
+    }
     file.close();  // 关闭文件
 
     QString str = QString::asprintf("%llu",mWakeDevCount);
